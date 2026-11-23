@@ -1,0 +1,2830 @@
+{
+  "info": {
+    "_postman_id": "7fdae53d-26aa-5f0d-bb70-14ba7b71a349",
+    "name": "Сайт знайомств - REST API (ЛР №4)",
+    "description": "Тестування RESTful вебсервісу «Сайт знайомств» на відповідність документації OpenAPI.\n\nПеред запуском: запустіть застосунок і вкажіть baseUrl в environment (за замовчуванням http://localhost:8080). Запити виконуються послідовно (Collection Runner).\n\nДля кожного запиту до /api/** скрипт рівня колекції перевіряє, що операцію описано в специфікації /v3/api-docs, що отриманий код стану задокументовано, і що тіло відповіді відповідає схемі з документації.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Один раз за прогін завантажуємо OpenAPI-специфікацію: з нею порівнюються всі відповіді",
+          "if (!pm.collectionVariables.get('openapiSpec')) {",
+          "    pm.sendRequest(pm.variables.get('baseUrl') + '/v3/api-docs', (err, res) => {",
+          "        if (!err && res.code === 200) {",
+          "            pm.collectionVariables.set('openapiSpec', res.text());",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ===== Перевірка відповідності відповіді документації OpenAPI (виконується для кожного запиту /api/**) =====",
+          "const specText = pm.collectionVariables.get('openapiSpec');",
+          "const reqPath = pm.variables.replaceIn(pm.request.url.getPath());",
+          "if (specText && reqPath.startsWith('/api/')) {",
+          "    const spec = JSON.parse(specText);",
+          "    const method = pm.request.method.toLowerCase();",
+          "    const code = String(pm.response.code);",
+          "    const templates = Object.keys(spec.paths)",
+          "        .sort((a, b) => (a.match(/\\{/g) || []).length - (b.match(/\\{/g) || []).length);",
+          "    const opPath = templates.find(t => new RegExp('^' + t.replace(/\\{[^}]+\\}/g, '[^/]+') + '$').test(reqPath));",
+          "",
+          "    if (code === '405') {",
+          "        pm.test('OpenAPI: метод ' + method.toUpperCase() + ' для ' + opPath + ' не задокументовано (тому 405)', () => {",
+          "            pm.expect(opPath, 'шлях').to.be.a('string');",
+          "            pm.expect(spec.paths[opPath][method]).to.be.undefined;",
+          "        });",
+          "    } else {",
+          "        const op = opPath && spec.paths[opPath][method];",
+          "        pm.test('OpenAPI: операцію ' + method.toUpperCase() + ' ' + (opPath || reqPath) + ' описано в документації', () => {",
+          "            pm.expect(op, 'операція').to.be.an('object');",
+          "            pm.expect(op.summary, 'короткий опис').to.be.a('string').and.not.empty;",
+          "            pm.expect(op.description, 'повний опис').to.be.a('string').and.not.empty;",
+          "        });",
+          "        if (op) {",
+          "            pm.test('OpenAPI: код ' + code + ' задокументовано для операції', () => {",
+          "                pm.expect(Object.keys(op.responses)).to.include(code);",
+          "            });",
+          "            const resp = op.responses[code];",
+          "            const body = pm.response.text();",
+          "            if (resp && resp.content && body) {",
+          "                const ct = (pm.response.headers.get('Content-Type') || '').split(';')[0].trim();",
+          "                const media = resp.content[ct] || Object.values(resp.content)[0];",
+          "                const errors = [];",
+          "                const deref = s => {",
+          "                    let guard = 0;",
+          "                    while (s && s.$ref && guard++ < 10) s = spec.components.schemas[s.$ref.split('/').pop()];",
+          "                    return s;",
+          "                };",
+          "                const check = (schema, value, path, depth) => {",
+          "                    schema = deref(schema);",
+          "                    if (!schema || depth > 8) return;",
+          "                    if (value === null) {",
+          "                        if (!schema.nullable) errors.push(path + ': null не дозволено');",
+          "                        return;",
+          "                    }",
+          "                    const actual = Array.isArray(value) ? 'array'",
+          "                        : typeof value === 'number' ? (Number.isInteger(value) ? 'integer' : 'number')",
+          "                        : typeof value;",
+          "                    if (schema.type && !(schema.type === actual || (schema.type === 'number' && actual === 'integer'))) {",
+          "                        errors.push(path + ': очікувався ' + schema.type + ', отримано ' + actual);",
+          "                        return;",
+          "                    }",
+          "                    if (schema.enum && !schema.enum.includes(value)) errors.push(path + ': значення поза enum');",
+          "                    if (actual === 'array' && schema.items) value.forEach((v, i) => check(schema.items, v, path + '[' + i + ']', depth + 1));",
+          "                    if (actual === 'object') {",
+          "                        (schema.required || []).forEach(k => { if (!(k in value)) errors.push(path + '.' + k + ': відсутнє обов’язкове поле'); });",
+          "                        Object.entries(schema.properties || {}).forEach(([k, s]) => { if (k in value) check(s, value[k], path + '.' + k, depth + 1); });",
+          "                    }",
+          "                };",
+          "                check(media.schema, pm.response.json(), '$', 0);",
+          "                pm.test('OpenAPI: тіло відповіді відповідає схемі', () => pm.expect(errors, errors.join('; ')).to.be.empty);",
+          "            } else if (resp && !resp.content) {",
+          "                pm.test('OpenAPI: відповідь без тіла, як і задокументовано', () => pm.expect(body).to.be.empty);",
+          "            }",
+          "        }",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "newProfileId",
+      "value": ""
+    },
+    {
+      "key": "invitationId",
+      "value": ""
+    },
+    {
+      "key": "firstPageIds",
+      "value": ""
+    },
+    {
+      "key": "openapiSpec",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Документація OpenAPI",
+      "description": "Отримання специфікації, з якою порівнюються всі подальші відповіді.",
+      "item": [
+        {
+          "name": "Отримати OpenAPI-специфікацію",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const spec = pm.response.json();",
+                  "pm.test('Документ OpenAPI 3.x', () => pm.expect(spec.openapi).to.match(/^3\\./));",
+                  "pm.test('Описано ресурси /api/profiles та /api/invitations', () => {",
+                  "    pm.expect(spec.paths).to.have.property('/api/profiles');",
+                  "    pm.expect(spec.paths).to.have.property('/api/invitations');",
+                  "});",
+                  "pm.test('Кожна операція має короткий і повний опис та коди стану', () => {",
+                  "    Object.entries(spec.paths).forEach(([p, item]) => Object.entries(item).forEach(([m, op]) => {",
+                  "        pm.expect(op.summary, m + ' ' + p).to.be.a('string').and.not.empty;",
+                  "        pm.expect(op.description, m + ' ' + p).to.be.a('string').and.not.empty;",
+                  "        pm.expect(Object.keys(op.responses).length, m + ' ' + p).to.be.above(1);",
+                  "    }));",
+                  "});",
+                  "pm.collectionVariables.set('openapiSpec', pm.response.text());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Анкети - CRUD",
+      "description": "Створення, читання, повне оновлення анкети та типові помилки.",
+      "item": [
+        {
+          "name": "Створити анкету (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Заголовок Location вказує на створений ресурс', () => {",
+                  "    pm.expect(pm.response.headers.get('Location')).to.match(new RegExp('/api/profiles/' + b.id + '$'));",
+                  "});",
+                  "pm.test('Дані збережено, ключові слова нормалізовано', () => {",
+                  "    pm.expect(b.name).to.eql('Postman Tester');",
+                  "    pm.expect(b.age).to.eql(24);",
+                  "    pm.expect(b.keywords).to.eql(['тестування', 'api']);",
+                  "});",
+                  "pm.test('Закрита інформація не повертається в публічних даних', () => pm.expect(b).to.not.have.property('privateInfo'));",
+                  "pm.collectionVariables.set('newProfileId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester\",\n  \"age\": 24,\n  \"publicInfo\": \"Створено автотестом Postman\",\n  \"privateInfo\": \"tester@example.com\",\n  \"keywords\": [\n    \"Тестування\",\n    \" API \",\n    \"тестування\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Створити анкету з помилками валідації (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Помилка валідації', () => pm.expect(pm.response.json().title).to.eql('Помилка валідації'));",
+                  "pm.test('Перелік помилок валідації містить поля name, age, keywords[0]', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"name\", \"age\", \"keywords[0]\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"age\": 15,\n  \"keywords\": [\n    \"\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Створити анкету - некоректний JSON (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Некоректне тіло запиту', () => pm.expect(pm.response.json().title).to.eql('Некоректне тіло запиту'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Bob\", \"age\": }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Створити анкету - непідтримуваний Content-Type (415)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(415);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "name=Bob",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Отримати анкету за id (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Повернуто створену анкету', () => {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.id).to.eql(Number(pm.collectionVariables.get('newProfileId')));",
+                  "    pm.expect(b.publicInfo).to.eql('Створено автотестом Postman');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати неіснуючу анкету (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Ресурс не знайдено', () => pm.expect(pm.response.json().title).to.eql('Ресурс не знайдено'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати анкету - некоректний id (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "abc"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Повністю оновити власну анкету - PUT (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Усі поля замінено', () => {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.age).to.eql(25);",
+                  "    pm.expect(b.publicInfo).to.eql('Оновлено через PUT');",
+                  "    pm.expect(b.keywords).to.eql(['тестування', 'rest']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester\",\n  \"age\": 25,\n  \"publicInfo\": \"Оновлено через PUT\",\n  \"privateInfo\": \"tester@example.com\",\n  \"keywords\": [\n    \"тестування\",\n    \"rest\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT чужої анкети (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Операцію заборонено', () => pm.expect(pm.response.json().title).to.eql('Операцію заборонено'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hacker\",\n  \"age\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT без заголовка X-User-Id (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Пояснення: відсутній заголовок X-User-Id', () => pm.expect(pm.response.json().detail).to.include('X-User-Id'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester\",\n  \"age\": 25\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT неіснуючої анкети (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "999999"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "999999"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nobody\",\n  \"age\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Фільтрація та пагінація",
+      "description": "Параметри keyword, name, minAge, maxAge, page, size, sort.",
+      "item": [
+        {
+          "name": "Перша сторінка (page=0, size=2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Метадані пагінації коректні', () => {",
+                  "    pm.expect(b.content).to.have.lengthOf(2);",
+                  "    pm.expect(b.page).to.eql(0);",
+                  "    pm.expect(b.size).to.eql(2);",
+                  "    pm.expect(b.totalElements).to.be.at.least(6);",
+                  "    pm.expect(b.totalPages).to.eql(Math.ceil(b.totalElements / 2));",
+                  "    pm.expect(b.first).to.be.true;",
+                  "    pm.expect(b.last).to.be.false;",
+                  "});",
+                  "pm.collectionVariables.set('firstPageIds', JSON.stringify(b.content.map(p => p.id)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?page=0&size=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Друга сторінка (page=1, size=2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "const firstIds = JSON.parse(pm.collectionVariables.get('firstPageIds'));",
+                  "pm.test('Друга сторінка містить інші анкети', () => {",
+                  "    pm.expect(b.content).to.have.lengthOf(2);",
+                  "    b.content.forEach(p => pm.expect(firstIds).to.not.include(p.id));",
+                  "    pm.expect(b.first).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?page=1&size=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Фільтр за ключовим словом (keyword=спорт)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Знайдено анкети, і всі містять ключове слово', () => {",
+                  "    pm.expect(b.totalElements).to.be.at.least(2);",
+                  "    b.content.forEach(p => pm.expect(p.keywords.some(k => k.includes('спорт')), p.name).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?keyword=спорт",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "спорт"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Фільтр за віком + сортування (minAge=22, maxAge=25, sort=age,desc)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const ages = pm.response.json().content.map(p => p.age);",
+                  "pm.test('Вік у діапазоні 22-25', () => ages.forEach(a => pm.expect(a).to.be.within(22, 25)));",
+                  "pm.test('Відсортовано за спаданням віку', () => pm.expect(ages).to.eql([...ages].sort((x, y) => y - x)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?minAge=22&maxAge=25&sort=age,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "minAge",
+                  "value": "22"
+                },
+                {
+                  "key": "maxAge",
+                  "value": "25"
+                },
+                {
+                  "key": "sort",
+                  "value": "age,desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Фільтр за частиною імені (name=AN) + сортування за іменем",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const names = pm.response.json().content.map(p => p.name);",
+                  "pm.test('Усі імена містять «an» (без урахування регістру)', () => {",
+                  "    pm.expect(names.length).to.be.above(0);",
+                  "    names.forEach(n => pm.expect(n.toLowerCase()).to.include('an'));",
+                  "});",
+                  "pm.test('Відсортовано за іменем', () => pm.expect(names).to.eql([...names].sort((a, b) => a.localeCompare(b))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?name=AN&sort=name",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "AN"
+                },
+                {
+                  "key": "sort",
+                  "value": "name"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Порожній результат фільтрації",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Порожня сторінка', () => {",
+                  "    pm.expect(b.content).to.be.empty;",
+                  "    pm.expect(b.totalElements).to.eql(0);",
+                  "    pm.expect(b.totalPages).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?keyword=неіснуюче",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "неіснуюче"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Некоректна пагінація: page=-1, size=500 (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Помилка валідації', () => pm.expect(pm.response.json().title).to.eql('Помилка валідації'));",
+                  "pm.test('Перелік помилок валідації містить поля page, size', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"page\", \"size\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?page=-1&size=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "-1"
+                },
+                {
+                  "key": "size",
+                  "value": "500"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Некоректне сортування: sort=email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Перелік помилок валідації містить поля sort', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"sort\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?sort=email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "email"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Суперечливий фільтр: minAge > maxAge (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles?minAge=30&maxAge=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "minAge",
+                  "value": "30"
+                },
+                {
+                  "key": "maxAge",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Часткове оновлення (RFC 7386, RFC 6902)",
+      "description": "JSON Merge Patch (application/merge-patch+json) та JSON Patch (application/json-patch+json).",
+      "item": [
+        {
+          "name": "JSON Merge Patch: змінити опис і видалити privateInfo (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Змінено лише передані поля', () => {",
+                  "    pm.expect(b.publicInfo).to.eql('Оновлено через JSON Merge Patch');",
+                  "    pm.expect(b.name).to.eql('Postman Tester');",
+                  "    pm.expect(b.age).to.eql(25);",
+                  "    pm.expect(b.keywords).to.eql(['тестування', 'rest']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicInfo\": \"Оновлено через JSON Merge Patch\",\n  \"privateInfo\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Перевірка: privateInfo видалено значенням null",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('privateInfo = null', () => pm.expect(pm.response.json().privateInfo).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}/private-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}",
+                "private-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "JSON Patch: test, replace, add, remove, copy (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Операції застосовано послідовно', () => {",
+                  "    pm.expect(b.age).to.eql(26);",
+                  "    pm.expect(b.keywords).to.eql(['rest', 'postman']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"op\": \"test\",\n    \"path\": \"/age\",\n    \"value\": 25\n  },\n  {\n    \"op\": \"replace\",\n    \"path\": \"/age\",\n    \"value\": 26\n  },\n  {\n    \"op\": \"add\",\n    \"path\": \"/keywords/-\",\n    \"value\": \"postman\"\n  },\n  {\n    \"op\": \"remove\",\n    \"path\": \"/keywords/0\"\n  },\n  {\n    \"op\": \"copy\",\n    \"from\": \"/name\",\n    \"path\": \"/privateInfo\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Перевірка: результат операції copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('privateInfo скопійовано з name', () => pm.expect(pm.response.json().privateInfo).to.eql('Postman Tester'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}/private-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}",
+                "private-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "JSON Patch: операція test не пройшла (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(409);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Патч неможливо застосувати', () => pm.expect(pm.response.json().title).to.eql('Патч неможливо застосувати'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"op\": \"test\",\n    \"path\": \"/age\",\n    \"value\": 99\n  },\n  {\n    \"op\": \"replace\",\n    \"path\": \"/age\",\n    \"value\": 30\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Перевірка атомарності: вік не змінився",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Патч не застосовано частково (вік = 26)', () => pm.expect(pm.response.json().age).to.eql(26));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "JSON Patch: змінити id неможливо (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(409);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"op\": \"replace\",\n    \"path\": \"/id\",\n    \"value\": 1\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "JSON Patch: невідома операція (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Некоректний документ патчу', () => pm.expect(pm.response.json().title).to.eql('Некоректний документ патчу'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"op\": \"rename\",\n    \"path\": \"/age\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "JSON Patch: бракує value / from, некоректний path (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Некоректний документ патчу', () => pm.expect(pm.response.json().title).to.eql('Некоректний документ патчу'));",
+                  "pm.test('Перелік помилок валідації містить поля [0].value, [1].from, [1].path', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"[0].value\", \"[1].from\", \"[1].path\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"op\": \"replace\",\n    \"path\": \"/age\"\n  },\n  {\n    \"op\": \"move\",\n    \"path\": \"age\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "JSON Merge Patch: результат не проходить валідацію (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(422);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Результат патчу некоректний', () => pm.expect(pm.response.json().title).to.eql('Результат патчу некоректний'));",
+                  "pm.test('Перелік помилок валідації містить поля age, name', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"age\", \"name\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 10,\n  \"name\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "JSON Merge Patch: некоректний тип значення (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(422);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Перелік помилок валідації містить поля age', () => {",
+                  "    const fields = (pm.response.json().errors || []).map(e => e.field);",
+                  "    [\"age\"].forEach(f => pm.expect(fields).to.include(f));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": \"двадцять\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH чужої анкети (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH з Content-Type application/json (415)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(415);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Запрошення",
+      "description": "CRUD запрошень, зміна стану через JSON Merge Patch, доступ до закритої інформації.",
+      "item": [
+        {
+          "name": "Надіслати запрошення (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Запрошення створено в стані PENDING', () => {",
+                  "    pm.expect(b.status).to.eql('PENDING');",
+                  "    pm.expect(b.senderId).to.eql(Number(pm.collectionVariables.get('newProfileId')));",
+                  "    pm.expect(b.receiverId).to.eql(1);",
+                  "});",
+                  "pm.test('Заголовок Location', () => pm.expect(pm.response.headers.get('Location')).to.match(new RegExp('/api/invitations/' + b.id + '$')));",
+                  "pm.collectionVariables.set('invitationId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": {{newProfileId}},\n  \"receiverId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Повторне запрошення (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(409);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": {{newProfileId}},\n  \"receiverId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Зустрічне запрошення (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(409);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": 1,\n  \"receiverId\": {{newProfileId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Запрошення самому собі (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Заголовок помилки: Помилка валідації', () => pm.expect(pm.response.json().title).to.eql('Помилка валідації'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": {{newProfileId}},\n  \"receiverId\": {{newProfileId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Запрошення неіснуючому користувачу (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": {{newProfileId}},\n  \"receiverId\": 999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Отримувач бачить закриту інформацію відправника (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Повернуто закриту інформацію', () => pm.expect(pm.response.json().privateInfo).to.eql('Postman Tester'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}/private-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}",
+                "private-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Відправник ще не бачить закриту інформацію отримувача (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/1/private-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "1",
+                "private-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Змінити стан може лише отримувач (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Прийняти запрошення (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Стан ACCEPTED', () => pm.expect(pm.response.json().status).to.eql('ACCEPTED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Повторне прийняття - ідемпотентність (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Стан залишився ACCEPTED', () => pm.expect(pm.response.json().status).to.eql('ACCEPTED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Недопустимий перехід ACCEPTED → DECLINED (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(409);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DECLINED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Невідомий стан (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"MAYBE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Після прийняття відправник бачить закриту інформацію (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Повернуто контакти Anna', () => pm.expect(pm.response.json().privateInfo).to.eql('anna@example.com'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/1/private-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "1",
+                "private-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Фільтр запрошень: receiverId=1, status=ACCEPTED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test('Усі запрошення відповідають фільтру', () => b.content.forEach(i => {",
+                  "    pm.expect(i.receiverId).to.eql(1);",
+                  "    pm.expect(i.status).to.eql('ACCEPTED');",
+                  "}));",
+                  "pm.test('Містить створене запрошення', () => pm.expect(b.content.map(i => i.id)).to.include(Number(pm.collectionVariables.get('invitationId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations?receiverId=1&status=ACCEPTED&page=0&size=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ],
+              "query": [
+                {
+                  "key": "receiverId",
+                  "value": "1"
+                },
+                {
+                  "key": "status",
+                  "value": "ACCEPTED"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Фільтр із невідомим статусом (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(400);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations?status=UNKNOWN",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "UNKNOWN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати запрошення за id (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Повернуто потрібне запрошення', () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('invitationId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Видалити запрошення не учасником (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "3"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Видалити запрошення (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 204', () => pm.response.to.have.status(204));",
+                  "",
+                  "pm.test('Тіло відповіді порожнє', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати видалене запрошення (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations/{{invitationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations",
+                "{{invitationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Непідтримуваний метод PUT для колекції (405)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 405', () => pm.response.to.have.status(405));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(405);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invitations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": 1,\n  \"receiverId\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Видалення анкети",
+      "description": "Видалення власної анкети та перевірка результату.",
+      "item": [
+        {
+          "name": "Видалити чужу анкету (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(403);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Видалити власну анкету (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 204', () => pm.response.to.have.status(204));",
+                  "",
+                  "pm.test('Тіло відповіді порожнє', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати видалену анкету (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Повторне видалення (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Код стану 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Помилка у форматі application/problem+json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.status).to.eql(404);",
+                  "    pm.expect(b.title).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{newProfileId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/{{newProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{newProfileId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

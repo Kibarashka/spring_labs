@@ -1,0 +1,1115 @@
+openapi: 3.0.1
+info:
+  title: Сайт знайомств - REST API
+  description: |-
+    RESTful вебсервіс для варіанта №10 «Сайт знайомств» (лабораторна робота №4).
+
+    **Ресурси:** анкети (`/api/profiles`) та запрошення (`/api/invitations`).
+
+    **Ідентифікація користувача.** Операції, що виконуються від імені користувача
+    (зміна чи видалення власної анкети, перегляд закритої інформації, відповідь на
+    запрошення), вимагають заголовок `X-User-Id`. Це імітація автентифікації:
+    функції безпеки в роботі не реалізуються.
+
+    **Часткове оновлення:** JSON Merge Patch (RFC 7386, `application/merge-patch+json`)
+    та JSON Patch (RFC 6902, `application/json-patch+json`).
+
+    **Помилки** повертаються у форматі Problem Details (RFC 9457,
+    `application/problem+json`).
+  version: 1.0.0
+servers:
+- url: http://localhost:8081
+  description: Generated server url
+tags:
+- name: Анкети
+  description: "CRUD-операції з анкетами, фільтрація, пагінація та часткове оновле\
+    ння"
+- name: Запрошення
+  description: "Надсилання, перегляд, прийняття/відхилення та видалення запрошень"
+paths:
+  /api/profiles/{id}:
+    get:
+      tags:
+      - Анкети
+      summary: Отримати анкету за id
+      description: "Повертає публічні дані однієї анкети: ім’я, вік, відкриту інфо\
+        рмацію та ключові слова."
+      operationId: getProfile
+      parameters:
+      - name: id
+        in: path
+        description: Id анкети
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      responses:
+        "200":
+          description: Анкету знайдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Некоректний id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Анкету не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    put:
+      tags:
+      - Анкети
+      summary: Повністю оновити анкету
+      description: |-
+        Замінює всі дані анкети значеннями з тіла запиту (поля, яких немає в тілі, стають порожніми).
+        Змінювати можна лише власну анкету: X-User-Id має збігатися з id.
+      operationId: replaceProfile
+      parameters:
+      - name: id
+        in: path
+        description: Id анкети
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+        required: true
+      responses:
+        "200":
+          description: Анкету оновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: "Тіло запиту некоректне, не пройшло валідацію або відсутній\
+            \ X-User-Id"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Спроба змінити чужу анкету
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Анкету не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Непідтримуваний Content-Type (очікується application/json)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    delete:
+      tags:
+      - Анкети
+      summary: Видалити анкету
+      description: "Видаляє власну анкету (X-User-Id = id) разом з усіма запрошенн\
+        ями, у яких вона бере участь."
+      operationId: deleteProfile
+      parameters:
+      - name: id
+        in: path
+        description: Id анкети
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 6
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 6
+      responses:
+        "204":
+          description: Анкету видалено
+        "400":
+          description: Відсутній або некоректний X-User-Id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Спроба видалити чужу анкету
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Анкету не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    patch:
+      tags:
+      - Анкети
+      summary: Частково оновити анкету (JSON Merge Patch або JSON Patch)
+      description: |-
+        Підтримуються два формати часткового оновлення, формат визначається заголовком Content-Type:
+
+        * application/merge-patch+json - JSON Merge Patch (RFC 7386): об’єкт лише з полями,
+          які потрібно змінити; значення null видаляє поле;
+        * application/json-patch+json - JSON Patch (RFC 6902): масив операцій
+          add, remove, replace, move, copy, test, які виконуються послідовно та атомарно.
+
+        Документ, до якого застосовується патч, має структуру ProfileRequest (поле id відсутнє і не
+        може бути змінене). Після застосування результат проходить ту саму валідацію, що й при PUT.
+        Змінювати можна лише власну анкету (X-User-Id = id).
+      operationId: patchProfile
+      parameters:
+      - name: id
+        in: path
+        description: Id анкети
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      requestBody:
+        description: Документ часткового оновлення
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/ProfileMergePatch"
+            examples:
+              merge-patch:
+                summary: Змінити опис і видалити закриту інформацію
+                description: merge-patch
+                value:
+                  publicInfo: Люблю гори та каву
+                  privateInfo: null
+          application/json-patch+json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/JsonPatchOperation"
+            examples:
+              json-patch:
+                summary: "Перевірити вік, змінити його та додати ключове слово"
+                description: json-patch
+                value:
+                - op: test
+                  path: /age
+                  value: 22
+                - op: replace
+                  path: /age
+                  value: 23
+                - op: add
+                  path: /keywords/-
+                  value: кава
+        required: true
+      responses:
+        "200":
+          description: Анкету частково оновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Некоректний документ патчу або відсутній X-User-Id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Спроба змінити чужу анкету
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Анкету не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: "Патч неможливо застосувати: немає поля за шляхом path або\
+            \ не пройшла операція test"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Непідтримуваний Content-Type
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "422":
+          description: Після застосування патчу анкета не проходить валідацію
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/profiles:
+    get:
+      tags:
+      - Анкети
+      summary: Отримати список анкет (фільтрація та пагінація)
+      description: |-
+        Повертає сторінку анкет, що відповідають усім заданим фільтрам.
+        Фільтри: keyword - частина ключового слова, name - частина імені (обидва без урахування
+        регістру), minAge / maxAge - діапазон віку включно. Пагінація: page - номер сторінки
+        з 0, size - розмір сторінки (1-100). Сортування: sort=поле[,asc|desc], де поле - id, name або age.
+        Закрита інформація у списку не повертається.
+      operationId: getProfiles
+      parameters:
+      - name: keyword
+        in: query
+        description: Частина ключового слова
+        required: false
+        schema:
+          maxLength: 50
+          minLength: 0
+          type: string
+        example: спорт
+      - name: name
+        in: query
+        description: Частина імені
+        required: false
+        schema:
+          maxLength: 50
+          minLength: 0
+          type: string
+        example: an
+      - name: minAge
+        in: query
+        description: Мінімальний вік (включно)
+        required: false
+        schema:
+          maximum: 100
+          minimum: 18
+          type: integer
+          format: int32
+        example: 20
+      - name: maxAge
+        in: query
+        description: Максимальний вік (включно)
+        required: false
+        schema:
+          maximum: 100
+          minimum: 18
+          type: integer
+          format: int32
+        example: 30
+      - name: page
+        in: query
+        description: Номер сторінки (з 0)
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+          format: int32
+          default: 0
+        example: 0
+      - name: size
+        in: query
+        description: Розмір сторінки (1-100)
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+          format: int32
+          default: 10
+        example: 10
+      - name: sort
+        in: query
+        description: "Сортування: id, name або age з напрямом asc/desc"
+        required: false
+        schema:
+          pattern: "^(id|name|age)(,(asc|desc))?$"
+          type: string
+          default: "id,asc"
+        example: "age,desc"
+      responses:
+        "200":
+          description: Сторінку анкет отримано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageResponseProfileResponse"
+        "400":
+          description: "Некоректні параметри фільтрації, пагінації або сортування"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    post:
+      tags:
+      - Анкети
+      summary: Створити анкету
+      description: |-
+        Створює нову анкету. Ім’я та вік (18-100) обов’язкові. Ключові слова нормалізуються:
+        обрізаються пробіли, переводяться в нижній регістр, повтори видаляються.
+        У відповіді повертається створена анкета, а в заголовку Location - її адреса.
+      operationId: createProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+        required: true
+      responses:
+        "201":
+          description: Анкету створено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Тіло запиту некоректне або не пройшло валідацію
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Непідтримуваний Content-Type (очікується application/json)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/invitations:
+    get:
+      tags:
+      - Запрошення
+      summary: Отримати список запрошень (фільтрація та пагінація)
+      description: |-
+        Повертає сторінку запрошень, відсортованих за id. Фільтри (необов’язкові, поєднуються через «І»):
+        senderId - відправник, receiverId - отримувач, status - стан запрошення.
+      operationId: getInvitations
+      parameters:
+      - name: senderId
+        in: query
+        description: Id відправника
+        required: false
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      - name: receiverId
+        in: query
+        description: Id отримувача
+        required: false
+        schema:
+          type: integer
+          format: int64
+        example: 2
+      - name: status
+        in: query
+        description: Стан запрошення
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+        example: PENDING
+      - name: page
+        in: query
+        description: Номер сторінки (з 0)
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+          format: int32
+          default: 0
+        example: 0
+      - name: size
+        in: query
+        description: Розмір сторінки (1-100)
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+          format: int32
+          default: 10
+        example: 10
+      responses:
+        "200":
+          description: Сторінку запрошень отримано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageResponseInvitationResponse"
+        "400":
+          description: "Некоректні параметри (наприклад, невідомий status)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    post:
+      tags:
+      - Запрошення
+      summary: Надіслати запрошення
+      description: |-
+        Створює запрошення від senderId до receiverId у стані PENDING. Не можна запросити себе;
+        між двома користувачами може існувати лише одне запрошення (в будь-якому напрямку).
+        Після створення отримувач одразу отримує доступ до закритої інформації відправника.
+      operationId: createInvitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationCreateRequest"
+        required: true
+      responses:
+        "201":
+          description: Запрошення створено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+        "400":
+          description: Тіло запиту некоректне або не пройшло валідацію (зокрема запрошення
+            самому собі)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Відправника або отримувача не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Запрошення між цими користувачами вже існує
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Непідтримуваний Content-Type (очікується application/json)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/invitations/{id}:
+    get:
+      tags:
+      - Запрошення
+      summary: Отримати запрошення за id
+      description: "Повертає одне запрошення: учасників, стан і дату створення."
+      operationId: getInvitation
+      parameters:
+      - name: id
+        in: path
+        description: Id запрошення
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      responses:
+        "200":
+          description: Запрошення знайдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+        "400":
+          description: Некоректний id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Запрошення не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    delete:
+      tags:
+      - Запрошення
+      summary: Видалити (відкликати) запрошення
+      description: Видаляє запрошення. Виконати операцію може лише учасник запрошення
+        - відправник або отримувач.
+      operationId: deleteInvitation
+      parameters:
+      - name: id
+        in: path
+        description: Id запрошення
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      responses:
+        "204":
+          description: Запрошення видалено
+        "400":
+          description: Відсутній або некоректний X-User-Id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Користувач не є учасником запрошення
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Запрошення не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    patch:
+      tags:
+      - Запрошення
+      summary: Прийняти або відхилити запрошення
+      description: |-
+        Часткове оновлення запрошення у форматі JSON Merge Patch (RFC 7386): змінюється лише поле status.
+        Дозволені переходи: PENDING → ACCEPTED, PENDING → DECLINED. Повторне встановлення поточного
+        стану нічого не змінює (операція ідемпотентна). Змінювати стан може лише отримувач (X-User-Id).
+      operationId: updateInvitationStatus
+      parameters:
+      - name: id
+        in: path
+        description: Id запрошення
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 2
+      requestBody:
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/InvitationStatusUpdateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationStatusUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Стан запрошення змінено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+        "400":
+          description: Некоректне тіло запиту або відсутній X-User-Id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Змінити стан може лише отримувач
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Запрошення не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: "Недопустимий перехід стану (наприклад, ACCEPTED → DECLINED)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Непідтримуваний Content-Type
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/profiles/{id}/private-info:
+    get:
+      tags:
+      - Анкети
+      summary: Отримати закриту інформацію анкети
+      description: |-
+        Повертає закриту інформацію (контакти) анкети, якщо користувач X-User-Id має до неї доступ:
+        це його власна анкета; або власник анкети надіслав йому запрошення;
+        або користувач сам надіслав запрошення і його прийняли.
+      operationId: getPrivateInfo
+      parameters:
+      - name: id
+        in: path
+        description: Id анкети
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 2
+      - name: X-User-Id
+        in: header
+        description: "Id користувача, від імені якого виконується операція (імітац\
+          ія автентифікації; повноцінна безпека в роботі не реалізується)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+      responses:
+        "200":
+          description: "Доступ дозволено, закриту інформацію повернуто"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateInfoResponse"
+        "400":
+          description: Відсутній або некоректний заголовок X-User-Id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Користувач не має доступу до закритої інформації
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Анкету не знайдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+components:
+  schemas:
+    ProfileRequest:
+      required:
+      - age
+      - name
+      type: object
+      properties:
+        name:
+          maxLength: 50
+          minLength: 0
+          type: string
+          description: Ім’я користувача
+          example: Taras
+        age:
+          maximum: 100
+          minimum: 18
+          type: integer
+          description: Вік (від 18 до 100)
+          format: int32
+          example: 23
+        publicInfo:
+          maxLength: 500
+          minLength: 0
+          type: string
+          description: Відкрита інформація «про себе»
+          nullable: true
+          example: Граю на гітарі
+        privateInfo:
+          maxLength: 200
+          minLength: 0
+          type: string
+          description: Закрита інформація (контакти)
+          nullable: true
+          example: "telegram: @taras_example"
+        keywords:
+          maxItems: 10
+          minItems: 0
+          type: array
+          description: Ключові слова (до 10 шт.)
+          example:
+          - музика
+          - гітара
+          items:
+            maxLength: 30
+            minLength: 0
+            type: string
+      description: Дані для створення або повної заміни анкети
+    ProfileResponse:
+      required:
+      - age
+      - id
+      - keywords
+      - name
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Ідентифікатор анкети
+          format: int64
+          example: 1
+        name:
+          type: string
+          description: Ім’я користувача
+          example: Anna
+        age:
+          type: integer
+          description: Вік
+          format: int32
+          example: 22
+        publicInfo:
+          type: string
+          description: "Відкрита інформація «про себе»; null, якщо не заповнена"
+          nullable: true
+          example: Люблю подорожі та музику
+        keywords:
+          type: array
+          description: Ключові слова (інтереси)
+          example:
+          - музика
+          - подорожі
+          items:
+            type: string
+            description: Ключові слова (інтереси)
+            example: "[\"музика\",\"подорожі\"]"
+      description: Публічні дані анкети (без закритої інформації)
+    InvitationCreateRequest:
+      required:
+      - receiverId
+      - senderId
+      type: object
+      properties:
+        senderId:
+          type: integer
+          description: Id анкети відправника
+          format: int64
+          example: 1
+        receiverId:
+          type: integer
+          description: Id анкети отримувача
+          format: int64
+          example: 2
+      description: Дані для надсилання запрошення
+    InvitationResponse:
+      required:
+      - createdAt
+      - id
+      - receiverId
+      - senderId
+      - status
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Ідентифікатор запрошення
+          format: int64
+          example: 1
+        senderId:
+          type: integer
+          description: Id анкети відправника
+          format: int64
+          example: 1
+        receiverId:
+          type: integer
+          description: Id анкети отримувача
+          format: int64
+          example: 2
+        status:
+          type: string
+          description: Стан запрошення
+          example: PENDING
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+        createdAt:
+          type: string
+          description: Дата і час створення
+          format: date-time
+      description: Запрошення від одного користувача іншому
+    ProfileMergePatch:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Нове ім’я
+          nullable: true
+          example: Anna
+        age:
+          type: integer
+          description: Новий вік
+          format: int32
+          nullable: true
+          example: 23
+        publicInfo:
+          type: string
+          description: Нова відкрита інформація або null для видалення
+          nullable: true
+          example: Люблю гори
+        privateInfo:
+          type: string
+          description: Нова закрита інформація або null для видалення
+          nullable: true
+        keywords:
+          type: array
+          description: Новий повний список ключових слів
+          nullable: true
+          items:
+            type: string
+            description: Новий повний список ключових слів
+            nullable: true
+      description: |-
+        Документ JSON Merge Patch (RFC 7386). Містить лише поля, які потрібно змінити.
+        Поле зі значенням null видаляється (для publicInfo / privateInfo / keywords).
+        Відсутні поля залишаються без змін.
+    JsonPatchOperation:
+      required:
+      - op
+      - path
+      type: object
+      properties:
+        op:
+          type: string
+          description: Тип операції
+          example: replace
+          enum:
+          - add
+          - remove
+          - replace
+          - move
+          - copy
+          - test
+        path:
+          pattern: "^(/[^/]*)*$"
+          type: string
+          description: JSON Pointer (RFC 6901) на поле документа
+          example: /age
+        from:
+          pattern: "^(/[^/]*)*$"
+          type: string
+          description: Джерело для операцій move та copy
+          example: /keywords/0
+        value:
+          description: "Значення для операцій add, replace, test (будь-яке JSON-зн\
+            ачення)"
+          example: 25
+      description: Операція JSON Patch (RFC 6902)
+    InvitationStatusUpdateRequest:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Новий стан: ACCEPTED (прийняти) або DECLINED (відхилити)"
+          example: ACCEPTED
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+          - ACCEPTED
+          - DECLINED
+      description: "Документ JSON Merge Patch для запрошення: дозволено змінювати\
+        \ лише status"
+    PageResponseProfileResponse:
+      required:
+      - content
+      - first
+      - last
+      - page
+      - size
+      - totalElements
+      - totalPages
+      type: object
+      properties:
+        content:
+          type: array
+          description: Елементи поточної сторінки
+          items:
+            $ref: "#/components/schemas/ProfileResponse"
+        page:
+          type: integer
+          description: Номер сторінки (з 0)
+          format: int32
+          example: 0
+        size:
+          type: integer
+          description: Розмір сторінки
+          format: int32
+          example: 10
+        totalElements:
+          type: integer
+          description: "Загальна кількість елементів, що відповідають фільтру"
+          format: int64
+          example: 5
+        totalPages:
+          type: integer
+          description: Загальна кількість сторінок
+          format: int32
+          example: 1
+        first:
+          type: boolean
+          description: Чи є сторінка першою
+          example: true
+        last:
+          type: boolean
+          description: Чи є сторінка останньою
+          example: true
+      description: Сторінка результатів
+    PrivateInfoResponse:
+      required:
+      - profileId
+      type: object
+      properties:
+        profileId:
+          type: integer
+          description: Ідентифікатор анкети
+          format: int64
+          example: 2
+        privateInfo:
+          type: string
+          description: "Закрита інформація (контакти); null, якщо не заповнена"
+          nullable: true
+          example: oleg@example.com
+      description: Закрита інформація анкети
+    PageResponseInvitationResponse:
+      required:
+      - content
+      - first
+      - last
+      - page
+      - size
+      - totalElements
+      - totalPages
+      type: object
+      properties:
+        content:
+          type: array
+          description: Елементи поточної сторінки
+          items:
+            $ref: "#/components/schemas/InvitationResponse"
+        page:
+          type: integer
+          description: Номер сторінки (з 0)
+          format: int32
+          example: 0
+        size:
+          type: integer
+          description: Розмір сторінки
+          format: int32
+          example: 10
+        totalElements:
+          type: integer
+          description: "Загальна кількість елементів, що відповідають фільтру"
+          format: int64
+          example: 5
+        totalPages:
+          type: integer
+          description: Загальна кількість сторінок
+          format: int32
+          example: 1
+        first:
+          type: boolean
+          description: Чи є сторінка першою
+          example: true
+        last:
+          type: boolean
+          description: Чи є сторінка останньою
+          example: true
+      description: Сторінка результатів
+    ProblemDetail:
+      required:
+      - title
+      - status
+      type: object
+      properties:
+        type:
+          type: string
+          description: URI типу помилки
+          example: about:blank
+        title:
+          type: string
+          description: Короткий заголовок
+          example: Ресурс не знайдено
+        status:
+          type: integer
+          description: Код стану HTTP
+          format: int32
+          example: 404
+        detail:
+          type: string
+          description: Детальний опис
+          example: Анкету з id=999 не знайдено
+        instance:
+          type: string
+          description: Шлях запиту
+          example: /api/profiles/999
+        timestamp:
+          type: string
+          description: Час виникнення помилки
+          example: 2026-11-21T12:00:00.000+02:00
+        errors:
+          type: array
+          description: Помилки валідації окремих полів (лише для помилок валідації)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Поле або параметр
+                example: age
+              message:
+                type: string
+                description: Опис помилки
+                example: Сайт доступний лише повнолітнім (від 18 років)
+      description: Опис помилки у форматі Problem Details (RFC 9457)

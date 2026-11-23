@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<!-- Спільні фрагменти сторінок. Підключаються через th:replace="~{fragments/layout :: ім'я}" -->
+
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:replace="${title}">Сайт знайомств</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+
+<header th:fragment="header" class="site-header">
+    <div class="container header-inner">
+        <a class="logo" th:href="@{/}">Сайт знайомств</a>
+
+        <nav class="nav">
+            <a th:href="@{/}">Анкети</a>
+            <a th:href="@{/invitations}">Мої запрошення</a>
+            <a th:href="@{/profiles/new}">Створити анкету</a>
+            <a th:href="@{/swagger-ui.html}">REST API</a>
+        </nav>
+
+        <!-- Перемикання демонстраційного користувача (аутентифікація в роботі не реалізується) -->
+        <form class="switch-user" th:if="${switchableProfiles}" th:action="@{/switch-user}" method="post">
+            <label for="userId">Ви:</label>
+            <select id="userId" name="userId">
+                <option th:each="p : ${switchableProfiles}"
+                        th:value="${p.id}"
+                        th:text="${p.name}"
+                        th:selected="${currentUser != null and p.id == currentUser.id}">Anna</option>
+            </select>
+            <button type="submit" class="btn btn-small">Увійти як</button>
+        </form>
+    </div>
+</header>
+
+<!-- Повідомлення після переадресації (flash-атрибути). Тип визначає оформлення. -->
+<div th:fragment="flash" th:if="${flashMessage}" class="alert"
+     th:classappend="'alert-' + (${flashType} ?: 'info')" role="status">
+    <strong th:switch="${flashType}">
+        <span th:case="'success'">Готово.</span>
+        <span th:case="'error'">Помилка.</span>
+        <span th:case="*">До відома.</span>
+    </strong>
+    <span th:text="${flashMessage}">Текст повідомлення</span>
+</div>
+
+<footer th:fragment="footer" class="site-footer">
+    <div class="container">Сайт знайомств · Spring Boot + Thymeleaf · REST API: /api/profiles, /api/invitations</div>
+</footer>
+
+</body>
+</html>

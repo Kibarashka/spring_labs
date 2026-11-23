@@ -1,0 +1,514 @@
+newman
+
+Сайт знайомств - REST API (ЛР №4)
+
+□ 0. Документація OpenAPI
+└ Отримати OpenAPI-специфікацію
+  GET http://localhost:8081/v3/api-docs [200 OK, 53.64kB, 645ms]
+  GET http://localhost:8081/v3/api-docs [200 OK, 53.64kB, 12ms]
+  √  Код стану 200
+  √  Документ OpenAPI 3.x
+  √  Описано ресурси /api/profiles та /api/invitations
+  √  Кожна операція має короткий і повний опис та коди стану
+
+□ 1. Анкети - CRUD
+└ Створити анкету (201)
+  POST http://localhost:8081/api/profiles [201 Created, 631B, 176ms]
+  √  OpenAPI: операцію POST /api/profiles описано в документації
+  √  OpenAPI: код 201 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 201
+  √  Заголовок Location вказує на створений ресурс
+  √  Дані збережено, ключові слова нормалізовано
+  √  Закрита інформація не повертається в публічних даних
+
+└ Створити анкету з помилками валідації (400)
+  POST http://localhost:8081/api/profiles [400 Bad Request, 907B, 22ms]
+  √  OpenAPI: операцію POST /api/profiles описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Помилка валідації
+  √  Перелік помилок валідації містить поля name, age, keywords[0]
+
+└ Створити анкету - некоректний JSON (400)
+  POST http://localhost:8081/api/profiles [400 Bad Request, 666B, 7ms]
+  √  OpenAPI: операцію POST /api/profiles описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Некоректне тіло запиту
+
+└ Створити анкету - непідтримуваний Content-Type (415)
+  POST http://localhost:8081/api/profiles [415 Unsupported Media Type, 753B, 8ms]
+  √  OpenAPI: операцію POST /api/profiles описано в документації
+  √  OpenAPI: код 415 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 415
+  √  Помилка у форматі application/problem+json
+
+└ Отримати анкету за id (200)
+  GET http://localhost:8081/api/profiles/6 [200 OK, 571B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Повернуто створену анкету
+
+└ Отримати неіснуючу анкету (404)
+  GET http://localhost:8081/api/profiles/999999 [404 Not Found, 651B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id} описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Ресурс не знайдено
+
+└ Отримати анкету - некоректний id (400)
+  GET http://localhost:8081/api/profiles/abc [400 Bad Request, 641B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles/{id} описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+
+└ Повністю оновити власну анкету - PUT (200)
+  PUT http://localhost:8081/api/profiles/6 [200 OK, 558B, 7ms]
+  √  OpenAPI: операцію PUT /api/profiles/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Усі поля замінено
+
+└ PUT чужої анкети (403)
+  PUT http://localhost:8081/api/profiles/1 [403 Forbidden, 666B, 5ms]
+  √  OpenAPI: операцію PUT /api/profiles/{id} описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Операцію заборонено
+
+└ PUT без заголовка X-User-Id (400)
+  PUT http://localhost:8081/api/profiles/6 [400 Bad Request, 644B, 6ms]
+  √  OpenAPI: операцію PUT /api/profiles/{id} описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Пояснення: відсутній заголовок X-User-Id
+
+└ PUT неіснуючої анкети (404)
+  PUT http://localhost:8081/api/profiles/999999 [404 Not Found, 651B, 7ms]
+  √  OpenAPI: операцію PUT /api/profiles/{id} описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+
+□ 2. Фільтрація та пагінація
+└ Перша сторінка (page=0, size=2)
+  GET http://localhost:8081/api/profiles?page=0&size=2 [200 OK, 781B, 23ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Метадані пагінації коректні
+
+└ Друга сторінка (page=1, size=2)
+  GET http://localhost:8081/api/profiles?page=1&size=2 [200 OK, 795B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Друга сторінка містить інші анкети
+
+└ Фільтр за ключовим словом (keyword=спорт)
+  GET http://localhost:8081/api/profiles?keyword=спорт [200 OK, 792B, 7ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Знайдено анкети, і всі містять ключове слово
+
+└ Фільтр за віком + сортування (minAge=22, maxAge=25, sort=age,desc)
+  GET http://localhost:8081/api/profiles?minAge=22&maxAge=25&sort=age,desc [200 OK, 1.1kB, 5ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Вік у діапазоні 22-25
+  √  Відсортовано за спаданням віку
+
+└ Фільтр за частиною імені (name=AN) + сортування за іменем
+  GET http://localhost:8081/api/profiles?name=AN&sort=name [200 OK, 789B, 5ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Усі імена містять «an» (без урахування регістру)
+  √  Відсортовано за іменем
+
+└ Порожній результат фільтрації
+  GET http://localhost:8081/api/profiles?keyword=неіснуюче [200 OK, 517B, 5ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Порожня сторінка
+
+└ Некоректна пагінація: page=-1, size=500 (400)
+  GET http://localhost:8081/api/profiles?page=-1&size=500 [400 Bad Request, 806B, 36ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Помилка валідації
+  √  Перелік помилок валідації містить поля page, size
+
+└ Некоректне сортування: sort=email (400)
+  GET http://localhost:8081/api/profiles?sort=email [400 Bad Request, 750B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Перелік помилок валідації містить поля sort
+
+└ Суперечливий фільтр: minAge > maxAge (400)
+  GET http://localhost:8081/api/profiles?minAge=30&maxAge=20 [400 Bad Request, 642B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+
+□ 3. Часткове оновлення (RFC 7386, RFC 6902)
+└ JSON Merge Patch: змінити опис і видалити privateInfo (200)
+  PATCH http://localhost:8081/api/profiles/6 [200 OK, 571B, 33ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Змінено лише передані поля
+
+└ Перевірка: privateInfo видалено значенням null
+  GET http://localhost:8081/api/profiles/6/private-info [200 OK, 460B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id}/private-info описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  privateInfo = null
+
+└ JSON Patch: test, replace, add, remove, copy (200)
+  PATCH http://localhost:8081/api/profiles/6 [200 OK, 558B, 25ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Операції застосовано послідовно
+
+└ Перевірка: результат операції copy
+  GET http://localhost:8081/api/profiles/6/private-info [200 OK, 472B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id}/private-info описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  privateInfo скопійовано з name
+
+└ JSON Patch: операція test не пройшла (409)
+  PATCH http://localhost:8081/api/profiles/6 [409 Conflict, 738B, 8ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 409 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 409
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Патч неможливо застосувати
+
+└ Перевірка атомарності: вік не змінився
+  GET http://localhost:8081/api/profiles/6 [200 OK, 558B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Патч не застосовано частково (вік = 26)
+
+└ JSON Patch: змінити id неможливо (409)
+  PATCH http://localhost:8081/api/profiles/6 [409 Conflict, 722B, 7ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 409 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 409
+  √  Помилка у форматі application/problem+json
+
+└ JSON Patch: невідома операція (400)
+  PATCH http://localhost:8081/api/profiles/6 [400 Bad Request, 700B, 5ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Некоректний документ патчу
+
+└ JSON Patch: бракує value / from, некоректний path (400)
+  PATCH http://localhost:8081/api/profiles/6 [400 Bad Request, 983B, 7ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Некоректний документ патчу
+  √  Перелік помилок валідації містить поля [0].value, [1].from, [1].path
+
+└ JSON Merge Patch: результат не проходить валідацію (422)
+  PATCH http://localhost:8081/api/profiles/6 [422 Unprocessable Entity (WebDAV) (RFC 4918), 926B, 8ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 422 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 422
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Результат патчу некоректний
+  √  Перелік помилок валідації містить поля age, name
+
+└ JSON Merge Patch: некоректний тип значення (422)
+  PATCH http://localhost:8081/api/profiles/6 [422 Unprocessable Entity (WebDAV) (RFC 4918), 847B, 8ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 422 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 422
+  √  Помилка у форматі application/problem+json
+  √  Перелік помилок валідації містить поля age
+
+└ PATCH чужої анкети (403)
+  PATCH http://localhost:8081/api/profiles/1 [403 Forbidden, 663B, 5ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+
+└ PATCH з Content-Type application/json (415)
+  PATCH http://localhost:8081/api/profiles/6 [415 Unsupported Media Type, 877B, 5ms]
+  √  OpenAPI: операцію PATCH /api/profiles/{id} описано в документації
+  √  OpenAPI: код 415 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 415
+  √  Помилка у форматі application/problem+json
+
+□ 4. Запрошення
+└ Надіслати запрошення (201)
+  POST http://localhost:8081/api/invitations [201 Created, 587B, 15ms]
+  √  OpenAPI: операцію POST /api/invitations описано в документації
+  √  OpenAPI: код 201 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 201
+  √  Запрошення створено в стані PENDING
+  √  Заголовок Location
+
+└ Повторне запрошення (409)
+  POST http://localhost:8081/api/invitations [409 Conflict, 686B, 5ms]
+  √  OpenAPI: операцію POST /api/invitations описано в документації
+  √  OpenAPI: код 409 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 409
+  √  Помилка у форматі application/problem+json
+
+└ Зустрічне запрошення (409)
+  POST http://localhost:8081/api/invitations [409 Conflict, 758B, 4ms]
+  √  OpenAPI: операцію POST /api/invitations описано в документації
+  √  OpenAPI: код 409 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 409
+  √  Помилка у форматі application/problem+json
+
+└ Запрошення самому собі (400)
+  POST http://localhost:8081/api/invitations [400 Bad Request, 767B, 6ms]
+  √  OpenAPI: операцію POST /api/invitations описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+  √  Заголовок помилки: Помилка валідації
+
+└ Запрошення неіснуючому користувачу (404)
+  POST http://localhost:8081/api/invitations [404 Not Found, 644B, 6ms]
+  √  OpenAPI: операцію POST /api/invitations описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+
+└ Отримувач бачить закриту інформацію відправника (200)
+  GET http://localhost:8081/api/profiles/6/private-info [200 OK, 472B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id}/private-info описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Повернуто закриту інформацію
+
+└ Відправник ще не бачить закриту інформацію отримувача (403)
+  GET http://localhost:8081/api/profiles/1/private-info [403 Forbidden, 761B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id}/private-info описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+
+└ Змінити стан може лише отримувач (403)
+  PATCH http://localhost:8081/api/invitations/1 [403 Forbidden, 688B, 10ms]
+  √  OpenAPI: операцію PATCH /api/invitations/{id} описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+
+└ Прийняти запрошення (200)
+  PATCH http://localhost:8081/api/invitations/1 [200 OK, 524B, 4ms]
+  √  OpenAPI: операцію PATCH /api/invitations/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Стан ACCEPTED
+
+└ Повторне прийняття - ідемпотентність (200)
+  PATCH http://localhost:8081/api/invitations/1 [200 OK, 524B, 4ms]
+  √  OpenAPI: операцію PATCH /api/invitations/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Стан залишився ACCEPTED
+
+└ Недопустимий перехід ACCEPTED → DECLINED (409)
+  PATCH http://localhost:8081/api/invitations/1 [409 Conflict, 748B, 5ms]
+  √  OpenAPI: операцію PATCH /api/invitations/{id} описано в документації
+  √  OpenAPI: код 409 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 409
+  √  Помилка у форматі application/problem+json
+
+└ Невідомий стан (400)
+  PATCH http://localhost:8081/api/invitations/1 [400 Bad Request, 671B, 4ms]
+  √  OpenAPI: операцію PATCH /api/invitations/{id} описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+
+└ Після прийняття відправник бачить закриту інформацію (200)
+  GET http://localhost:8081/api/profiles/1/private-info [200 OK, 474B, 6ms]
+  √  OpenAPI: операцію GET /api/profiles/{id}/private-info описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Повернуто контакти Anna
+
+└ Фільтр запрошень: receiverId=1, status=ACCEPTED
+  GET http://localhost:8081/api/invitations?receiverId=1&status=ACCEPTED&page=0&size=5 [200 OK, 615B, 11ms]
+  √  OpenAPI: операцію GET /api/invitations описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Усі запрошення відповідають фільтру
+  √  Містить створене запрошення
+
+└ Фільтр із невідомим статусом (400)
+  GET http://localhost:8081/api/invitations?status=UNKNOWN [400 Bad Request, 648B, 4ms]
+  √  OpenAPI: операцію GET /api/invitations описано в документації
+  √  OpenAPI: код 400 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 400
+  √  Помилка у форматі application/problem+json
+
+└ Отримати запрошення за id (200)
+  GET http://localhost:8081/api/invitations/1 [200 OK, 524B, 4ms]
+  √  OpenAPI: операцію GET /api/invitations/{id} описано в документації
+  √  OpenAPI: код 200 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 200
+  √  Повернуто потрібне запрошення
+
+└ Видалити запрошення не учасником (403)
+  DELETE http://localhost:8081/api/invitations/1 [403 Forbidden, 684B, 5ms]
+  √  OpenAPI: операцію DELETE /api/invitations/{id} описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+
+└ Видалити запрошення (204)
+  DELETE http://localhost:8081/api/invitations/1 [204 No Content, 382B, 3ms]
+  √  OpenAPI: операцію DELETE /api/invitations/{id} описано в документації
+  √  OpenAPI: код 204 задокументовано для операції
+  √  OpenAPI: відповідь без тіла, як і задокументовано
+  √  Код стану 204
+  √  Тіло відповіді порожнє
+
+└ Отримати видалене запрошення (404)
+  GET http://localhost:8081/api/invitations/1 [404 Not Found, 652B, 4ms]
+  √  OpenAPI: операцію GET /api/invitations/{id} описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+
+└ Непідтримуваний метод PUT для колекції (405)
+  PUT http://localhost:8081/api/invitations [405 Method Not Allowed, 722B, 4ms]
+  √  OpenAPI: метод PUT для /api/invitations не задокументовано (тому 405)
+  √  Код стану 405
+  √  Помилка у форматі application/problem+json
+
+□ 5. Видалення анкети
+└ Видалити чужу анкету (403)
+  DELETE http://localhost:8081/api/profiles/1 [403 Forbidden, 663B, 6ms]
+  √  OpenAPI: операцію DELETE /api/profiles/{id} описано в документації
+  √  OpenAPI: код 403 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 403
+  √  Помилка у форматі application/problem+json
+
+└ Видалити власну анкету (204)
+  DELETE http://localhost:8081/api/profiles/6 [204 No Content, 382B, 3ms]
+  √  OpenAPI: операцію DELETE /api/profiles/{id} описано в документації
+  √  OpenAPI: код 204 задокументовано для операції
+  √  OpenAPI: відповідь без тіла, як і задокументовано
+  √  Код стану 204
+  √  Тіло відповіді порожнє
+
+└ Отримати видалену анкету (404)
+  GET http://localhost:8081/api/profiles/6 [404 Not Found, 641B, 4ms]
+  √  OpenAPI: операцію GET /api/profiles/{id} описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+
+└ Повторне видалення (404)
+  DELETE http://localhost:8081/api/profiles/6 [404 Not Found, 641B, 3ms]
+  √  OpenAPI: операцію DELETE /api/profiles/{id} описано в документації
+  √  OpenAPI: код 404 задокументовано для операції
+  √  OpenAPI: тіло відповіді відповідає схемі
+  √  Код стану 404
+  √  Помилка у форматі application/problem+json
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                59 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │               116 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                58 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │               310 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 6.4s                                       │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 120.18kB (approx)                         │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 21ms [min: 3ms, max: 645ms, s.d.: 84ms] │
+└────────────────────────────────────────────────────────────────┘

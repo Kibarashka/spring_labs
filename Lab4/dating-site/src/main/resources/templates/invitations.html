@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(~{::title})}">
+    <title>Мої запрошення · Сайт знайомств</title>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="container">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+
+    <h1>Мої запрошення</h1>
+
+    <section class="block">
+        <h2>Отримані <span class="count" th:text="${#lists.size(received)}">0</span></h2>
+
+        <table class="table" th:unless="${#lists.isEmpty(received)}">
+            <thead>
+            <tr>
+                <th>№</th>
+                <th>Від кого</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th>Дії</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="inv, stat : ${received}" th:classappend="${stat.odd} ? 'row-odd'">
+                <td th:text="${stat.count}">1</td>
+                <td>
+                    <!-- Безпечна навігація ?. та Elvis: анкету відправника могли видалити -->
+                    <a th:href="@{/profiles/{id}(id=${inv.senderId})}"
+                       th:text="${profilesById[inv.senderId]?.name} ?: 'Видалений користувач'">Anna</a>
+                </td>
+                <td th:text="${#temporals.format(inv.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</td>
+                <td th:switch="${inv.status.name()}">
+                    <span th:case="'PENDING'" class="badge badge-pending" th:text="${inv.status.displayName}">Очікує</span>
+                    <span th:case="'ACCEPTED'" class="badge badge-accepted" th:text="${inv.status.displayName}">Прийнято</span>
+                    <span th:case="'DECLINED'" class="badge badge-declined" th:text="${inv.status.displayName}">Відхилено</span>
+                </td>
+                <td>
+                    <th:block th:if="${inv.pending}">
+                        <form class="inline" method="post" th:action="@{/invitations/{id}/accept(id=${inv.id})}">
+                            <button type="submit" class="btn btn-small">Прийняти</button>
+                        </form>
+                        <form class="inline" method="post" th:action="@{/invitations/{id}/decline(id=${inv.id})}">
+                            <button type="submit" class="btn btn-small btn-ghost">Відхилити</button>
+                        </form>
+                    </th:block>
+                    <span th:unless="${inv.pending}" class="muted">-</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="empty" th:if="${#lists.isEmpty(received)}">Отриманих запрошень немає.</p>
+    </section>
+
+    <section class="block">
+        <h2>Надіслані <span class="count" th:text="${#lists.size(sent)}">0</span></h2>
+
+        <table class="table" th:unless="${#lists.isEmpty(sent)}">
+            <thead>
+            <tr>
+                <th>№</th>
+                <th>Кому</th>
+                <th>Дата</th>
+                <th>Статус</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="inv, stat : ${sent}" th:classappend="${stat.odd} ? 'row-odd'">
+                <td th:text="${stat.count}">1</td>
+                <td>
+                    <a th:href="@{/profiles/{id}(id=${inv.receiverId})}"
+                       th:text="${profilesById[inv.receiverId]?.name} ?: 'Видалений користувач'">Oleg</a>
+                </td>
+                <td th:text="${#temporals.format(inv.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</td>
+                <td th:switch="${inv.status.name()}">
+                    <span th:case="'PENDING'" class="badge badge-pending" th:text="${inv.status.displayName}">Очікує</span>
+                    <span th:case="'ACCEPTED'" class="badge badge-accepted" th:text="${inv.status.displayName}">Прийнято</span>
+                    <span th:case="*" class="badge badge-declined" th:text="${inv.status.displayName}">Відхилено</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="empty" th:if="${#lists.isEmpty(sent)}">Ви ще не надсилали запрошень.</p>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>
