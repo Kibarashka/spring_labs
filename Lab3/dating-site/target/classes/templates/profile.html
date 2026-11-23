@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(~{::title})}">
+    <title>Анкета користувача · Сайт знайомств</title>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="container">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+
+    <a class="back" th:href="@{/}">← До списку анкет</a>
+
+    <article class="profile">
+        <header class="profile-head">
+            <h1 th:text="${profile.name}">Ім'я</h1>
+            <span class="age" th:text="'Вік: ' + ${profile.age}">Вік: 22</span>
+        </header>
+
+        <section>
+            <h2>Про себе</h2>
+            <p th:text="${profile.publicInfo} ?: 'Користувач ще нічого не розповів про себе.'">Про себе</p>
+        </section>
+
+        <section>
+            <h2>Інтереси</h2>
+            <ul class="tags" th:unless="${#lists.isEmpty(profile.keywords)}">
+                <li th:each="kw : ${profile.keywords}">
+                    <a th:href="@{/(keyword=${kw})}" th:text="${kw}">музика</a>
+                </li>
+            </ul>
+            <p class="muted" th:if="${#lists.isEmpty(profile.keywords)}">Інтереси не вказано.</p>
+        </section>
+
+        <!-- Умовне форматування: th:if / th:unless + різний CSS-клас -->
+        <section class="private" th:classappend="${canViewPrivateInfo} ? 'private-open' : 'private-locked'">
+            <h2>Закрита інформація</h2>
+            <p th:if="${canViewPrivateInfo}"
+               th:text="${profile.privateInfo} ?: 'Закриту інформацію не заповнено.'">email</p>
+            <p th:unless="${canViewPrivateInfo}" class="muted">
+                Закрита інформація стане доступною, коли користувач надішле вам запрошення
+                або прийме ваше.
+            </p>
+        </section>
+
+        <!-- Елемент вибору: залежно від стану зв'язку показуємо різні дії -->
+        <section class="actions" th:switch="${connectionStatus.name()}">
+            <div th:case="'SELF'">
+                <p>Це ваша анкета.</p>
+                <a class="btn" th:href="@{/profiles/me/edit}">Редагувати анкету</a>
+            </div>
+
+            <form th:case="'NONE'" th:action="@{/invitations}" method="post">
+                <input type="hidden" name="receiverId" th:value="${profile.id}">
+                <button type="submit" class="btn">Надіслати запрошення</button>
+            </form>
+
+            <p th:case="'INVITATION_SENT'">
+                <span class="badge badge-pending">Запрошення надіслано</span>
+                Очікуємо відповіді від <span th:text="${profile.name}">Oleg</span>.
+            </p>
+
+            <div th:case="'INVITATION_RECEIVED'">
+                <p><span th:text="${profile.name}">Oleg</span> надсилає вам запрошення.</p>
+                <form class="inline" method="post"
+                      th:action="@{/invitations/{id}/accept(id=${incomingInvitation.id})}">
+                    <input type="hidden" name="fromProfile" th:value="${profile.id}">
+                    <button type="submit" class="btn">Прийняти</button>
+                </form>
+                <form class="inline" method="post"
+                      th:action="@{/invitations/{id}/decline(id=${incomingInvitation.id})}">
+                    <input type="hidden" name="fromProfile" th:value="${profile.id}">
+                    <button type="submit" class="btn btn-ghost">Відхилити</button>
+                </form>
+            </div>
+
+            <p th:case="'MATCHED'">
+                <span class="badge badge-accepted">Взаємна симпатія</span>
+                Запрошення прийнято - закрита інформація відкрита обом.
+            </p>
+
+            <p th:case="'DECLINED'">
+                <span class="badge badge-declined">Запрошення відхилено</span>
+            </p>
+        </section>
+    </article>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

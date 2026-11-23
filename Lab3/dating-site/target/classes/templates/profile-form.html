@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(~{::title})}">
+    <title>Анкета · Сайт знайомств</title>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="container narrow">
+    <!-- Одна форма для двох режимів: створення та редагування -->
+    <h1 th:switch="${mode}">
+        <span th:case="'create'">Нова анкета</span>
+        <span th:case="'edit'">Редагування власної анкети</span>
+    </h1>
+
+    <form class="form" method="post" novalidate
+          th:object="${profileForm}"
+          th:action="${mode == 'create'} ? @{/profiles} : @{/profiles/me/edit}">
+
+        <div class="alert alert-error" th:if="${#fields.hasErrors('*')}">
+            Перевірте правильність заповнення полів.
+        </div>
+
+        <div class="field" th:classappend="${#fields.hasErrors('name')} ? 'field-error'">
+            <label for="name">Ім'я *</label>
+            <input id="name" type="text" maxlength="50" th:field="*{name}">
+            <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">Помилка</p>
+        </div>
+
+        <div class="field" th:classappend="${#fields.hasErrors('age')} ? 'field-error'">
+            <label for="age">Вік *</label>
+            <input id="age" type="number" th:field="*{age}">
+            <p class="error" th:if="${#fields.hasErrors('age')}" th:errors="*{age}">Помилка</p>
+        </div>
+
+        <div class="field" th:classappend="${#fields.hasErrors('publicInfo')} ? 'field-error'">
+            <label for="publicInfo">Відкрита інформація (бачать усі)</label>
+            <textarea id="publicInfo" rows="3" maxlength="500" th:field="*{publicInfo}"></textarea>
+            <p class="error" th:if="${#fields.hasErrors('publicInfo')}" th:errors="*{publicInfo}">Помилка</p>
+        </div>
+
+        <div class="field" th:classappend="${#fields.hasErrors('privateInfo')} ? 'field-error'">
+            <label for="privateInfo">Закрита інформація (контакти; бачать лише після запрошення)</label>
+            <input id="privateInfo" type="text" maxlength="200" th:field="*{privateInfo}">
+            <p class="error" th:if="${#fields.hasErrors('privateInfo')}" th:errors="*{privateInfo}">Помилка</p>
+        </div>
+
+        <div class="field" th:classappend="${#fields.hasErrors('keywords')} ? 'field-error'">
+            <label for="keywords">Ключові слова (через кому)</label>
+            <input id="keywords" type="text" maxlength="200" placeholder="музика, подорожі, кіно"
+                   th:field="*{keywords}">
+            <p class="error" th:if="${#fields.hasErrors('keywords')}" th:errors="*{keywords}">Помилка</p>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn"
+                    th:text="${mode == 'create'} ? 'Створити анкету' : 'Зберегти зміни'">Зберегти</button>
+            <a class="btn btn-ghost" th:href="@{/}">Скасувати</a>
+        </div>
+    </form>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

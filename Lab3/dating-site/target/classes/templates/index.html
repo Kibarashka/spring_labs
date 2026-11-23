@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(~{::title})}">
+    <title>Анкети · Сайт знайомств</title>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="container">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+
+    <section class="page-title">
+        <h1>Анкети користувачів</h1>
+        <!-- Умовний вираз: якщо поточний користувач є - вітаємо його, інакше підказка -->
+        <p class="muted"
+           th:text="${currentUser} ? 'Ви переглядаєте сайт як ' + ${currentUser.name} : 'Анкет ще немає - створіть першу!'">
+            Ви переглядаєте сайт як Anna
+        </p>
+    </section>
+
+    <form class="search" th:action="@{/}" method="get">
+        <input type="search" name="keyword" maxlength="50"
+               placeholder="Пошук за інтересами (наприклад, спорт)"
+               th:value="${keyword}">
+        <button type="submit" class="btn">Пошук</button>
+        <a th:if="${keyword}" class="btn btn-ghost" th:href="@{/}">Скинути</a>
+    </form>
+
+    <p class="muted" th:if="${keyword}">
+        Результати пошуку за «<span th:text="${keyword}">спорт</span>»:
+        знайдено <strong th:text="${#lists.size(profiles)}">1</strong>
+        з <span th:text="${totalCount}">5</span> анкет
+    </p>
+
+    <div class="cards">
+        <!-- Цикл: th:each перебирає список анкет, stat - статус ітерації (номер, парність тощо) -->
+        <article class="card"
+                 th:each="profile, stat : ${profiles}"
+                 th:classappend="${currentUser != null and profile.id == currentUser.id} ? 'card-own'">
+            <div class="card-head">
+                <span class="card-index" th:text="${stat.count}">1</span>
+                <h2 th:text="${profile.name}">Ім'я</h2>
+                <span class="age" th:text="${profile.age} + ' р.'">22 р.</span>
+                <span class="badge badge-own"
+                      th:if="${currentUser != null and profile.id == currentUser.id}">Це ви</span>
+            </div>
+
+            <!-- Elvis-оператор: якщо publicInfo == null, виводиться текст за замовчуванням -->
+            <p class="card-text"
+               th:text="${profile.publicInfo} ?: 'Користувач ще нічого не розповів про себе.'">Про себе</p>
+
+            <ul class="tags" th:unless="${#lists.isEmpty(profile.keywords)}">
+                <li th:each="kw : ${profile.keywords}">
+                    <a th:href="@{/(keyword=${kw})}" th:text="${kw}">музика</a>
+                </li>
+            </ul>
+
+            <a class="btn btn-small" th:href="@{/profiles/{id}(id=${profile.id})}">Переглянути анкету</a>
+        </article>
+    </div>
+
+    <p class="empty" th:if="${#lists.isEmpty(profiles)}">Анкет не знайдено.</p>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

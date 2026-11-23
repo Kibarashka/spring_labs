@@ -1,0 +1,147 @@
+00:34:12.229 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.datingsite.DatingSiteApplicationTests]: DatingSiteApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+00:34:12.401 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.datingsite.DatingSiteApplication for test class com.example.datingsite.DatingSiteApplicationTests
+00:34:12.517 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.datingsite.DatingSiteApplicationTests]: DatingSiteApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+00:34:12.519 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.datingsite.DatingSiteApplication for test class com.example.datingsite.DatingSiteApplicationTests
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:12.865+02:00  INFO 15572 --- [dating-site] [           main] c.e.d.DatingSiteApplicationTests         : Starting DatingSiteApplicationTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:12.867+02:00  INFO 15572 --- [dating-site] [           main] c.e.d.DatingSiteApplicationTests         : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:13.907+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:14.349+02:00  INFO 15572 --- [dating-site] [           main] c.e.d.DatingSiteApplicationTests         : Started DatingSiteApplicationTests in 1.749 seconds (process running for 3.022)
+Singleton: true
+Prototype: false
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\verni\.m2\repository\net\bytebuddy\byte-buddy-agent\1.17.8\byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-11-21T00:34:15.065+02:00  INFO 15572 --- [dating-site] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.example.datingsite.WebLayerTests]: WebLayerTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-11-21T00:34:15.069+02:00  INFO 15572 --- [dating-site] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.example.datingsite.DatingSiteApplication for test class com.example.datingsite.WebLayerTests
+2026-11-21T00:34:15.070+02:00  INFO 15572 --- [dating-site] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.example.datingsite.WebLayerTests]: WebLayerTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-11-21T00:34:15.072+02:00  INFO 15572 --- [dating-site] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.example.datingsite.DatingSiteApplication for test class com.example.datingsite.WebLayerTests
+2026-11-21T00:34:15.087+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:15.089+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:15.091+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:15.561+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:15.561+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:15.767+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:15.860+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.331 seconds (process running for 4.534)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:15.865+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:15.865+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:15.867+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 2 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:16.030+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:16.030+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:16.239+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:16.325+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.324 seconds (process running for 4.999)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:16.330+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:16.330+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:16.333+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 3 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:16.421+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:16.422+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:16.621+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:16.695+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.307 seconds (process running for 5.37)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:16.700+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:16.700+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:16.701+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:16.810+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:16.810+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:16.996+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:17.067+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.286 seconds (process running for 5.741)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:17.072+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:17.072+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:17.073+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:17.144+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:17.144+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:17.288+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:17.334+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.214 seconds (process running for 6.009)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:17.339+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:17.339+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:17.340+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.8)
+
+2026-11-21T00:34:17.389+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Starting WebLayerTests using Java 25.0.3 with PID 15572 (started by verni in C:\Users\verni\Desktop\спринга\Lab3\dating-site)
+2026-11-21T00:34:17.390+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : No active profile set, falling back to 1 default profile: "default"
+2026-11-21T00:34:17.510+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-11-21T00:34:17.557+02:00  INFO 15572 --- [dating-site] [           main] com.example.datingsite.WebLayerTests     : Started WebLayerTests in 0.19 seconds (process running for 6.231)
+Singleton: true
+Prototype: false
+2026-11-21T00:34:17.560+02:00  INFO 15572 --- [dating-site] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-21T00:34:17.561+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-21T00:34:17.561+02:00  INFO 15572 --- [dating-site] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
